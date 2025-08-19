@@ -28,8 +28,11 @@
         gap: 8px;
       }
       canvas {
-        width: 800px;
-        height: 600px;
+        width: 100%;
+        height: auto;
+        max-width: 100vw;
+        max-height: calc(100vh - 96px);
+        aspect-ratio: 4 / 3;
         image-rendering: pixelated;
         border: 1px solid #222;
         border-radius: 6px;
@@ -47,7 +50,7 @@
   </head>
   <body>
     <div class="wrap">
-      <canvas width="800" height="600"></canvas>
+      <canvas></canvas>
       <div class="note">
         Requires a browser with WebGPU enabled
         (Chrome/Edge 113+). Serve via HTTPS or
@@ -93,11 +96,14 @@
         )
         const format = navigator.gpu
           .getPreferredCanvasFormat()
-        context.configure({
-          device: device,
-          format: format,
-          alphaMode: 'opaque'
-        })
+        function configureContext() {
+          context.configure({
+            device: device,
+            format: format,
+            alphaMode: 'opaque'
+          })
+        }
+        configureContext()
 
         // WGSL shaders: full-screen triangle and
         // black hole ray-march fragment.
@@ -452,14 +458,40 @@ fn fs_main(
           }, { passive: false }
         )
 
-        // Resize handling (optional DPI aware).
+        // Resize handling (DPR aware and CSS-fit).
         function resizeCanvas() {
-          // Keep HTML size; ensure backing store
-          // matches attributes for crispness.
-          // Here we keep 800x600 attributes.
+          const dpr = Math.min(
+            window.devicePixelRatio || 1, 2
+          )
+          // Use CSS size of the canvas
+          const cssWidth = Math.max(
+            1, Math.floor(canvas.clientWidth)
+          )
+          const cssHeight = Math.max(
+            1, Math.floor(canvas.clientHeight)
+          )
+          const w = Math.max(1,
+            Math.round(cssWidth * dpr)
+          )
+          const h = Math.max(1,
+            Math.round(cssHeight * dpr)
+          )
+          if (canvas.width !== w ||
+              canvas.height !== h) {
+            canvas.width = w
+            canvas.height = h
+            configureContext()
+          }
           writeUniforms()
         }
         window.addEventListener('resize', resizeCanvas)
+        window.addEventListener(
+          'orientationchange', resizeCanvas
+        )
+        new ResizeObserver(resizeCanvas)
+          .observe(canvas)
+        // Initial sizing
+        resizeCanvas()
 
         // Animation loop.
         let lastTs = performance.now()
