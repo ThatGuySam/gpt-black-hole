@@ -2,6 +2,6 @@
     "name": "gpt-black-hole",
     "compatibility_date": "2025-04-23",
     "assets": {
-        "directory": "./" // 
+        "directory": "./public" // 
     }
 }

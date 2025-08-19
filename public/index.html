@@ -34,6 +34,8 @@
         border: 1px solid #222;
         border-radius: 6px;
         box-shadow: 0 2px 14px rgba(0,0,0,.6);
+        touch-action: none; /* enable custom
+                               gesture handling */
       }
       .note {
         font-size: 12px;
@@ -361,6 +363,85 @@ fn fs_main(
           hoverX = 0
           hoverY = 0
         })
+
+        // Touch gestures: 1-finger drag yaw/pitch,
+        // 2-finger pinch zoom, 2-finger rotate roll.
+        let touchState = {
+          active: false,
+          lastX: 0,
+          lastY: 0,
+          lastDist: 0,
+          lastAngle: 0
+        }
+
+        function dist(a, b){
+          const dx = a.clientX - b.clientX
+          const dy = a.clientY - b.clientY
+          return Math.hypot(dx, dy)
+        }
+        function angle(a, b){
+          return Math.atan2(
+            b.clientY - a.clientY,
+            b.clientX - a.clientX
+          )
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault()
+          const t = e.touches
+          if (t.length === 1) {
+            touchState.active = true
+            touchState.lastX = t[0].clientX
+            touchState.lastY = t[0].clientY
+          } else if (t.length >= 2) {
+            const a = t[0], b = t[1]
+            touchState.lastDist = dist(a, b)
+            touchState.lastAngle = angle(a, b)
+          }
+        }, { passive: false })
+
+        canvas.addEventListener('touchmove', (e) => {
+          e.preventDefault()
+          const t = e.touches
+          if (t.length === 1) {
+            // One finger: yaw/pitch like mouse drag
+            const dx = t[0].clientX - touchState.lastX
+            const dy = t[0].clientY - touchState.lastY
+            yaw -= dx * 0.005
+            pitch -= dy * 0.005
+            pitch = clamp(pitch, -1.3, 1.3)
+            touchState.lastX = t[0].clientX
+            touchState.lastY = t[0].clientY
+          } else if (t.length >= 2) {
+            // Two fingers: pinch to zoom
+            const a = t[0], b = t[1]
+            const d = dist(a, b)
+            const ang = angle(a, b)
+            const scale = d / (touchState.lastDist || d)
+            distance *= Math.pow(scale, 1.0)
+            distance = clamp(distance, 1.2, 10)
+            touchState.lastDist = d
+
+            // Two-finger rotate: adjust roll
+            let dAng = ang - touchState.lastAngle
+            // Wrap to [-pi, pi]
+            if (dAng > Math.PI) dAng -= 2*Math.PI
+            if (dAng < -Math.PI) dAng += 2*Math.PI
+            roll = clamp(roll - dAng, -1.5, 1.5)
+            touchState.lastAngle = ang
+          }
+        }, { passive: false })
+
+        canvas.addEventListener('touchend', (e) => {
+          e.preventDefault()
+          const t = e.touches
+          if (t.length === 0) {
+            touchState.active = false
+          } else if (t.length === 1) {
+            touchState.lastX = t[0].clientX
+            touchState.lastY = t[0].clientY
+          }
+        }, { passive: false })
 
         canvas.addEventListener(
           'wheel', (e) => {
