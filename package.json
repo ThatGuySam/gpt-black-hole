@@ -1,0 +1,17 @@
+{
+  "name": "gpt-black-hole",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "live-server --open=index.html",
+    "deploy": "pnpm dlx wrangler deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
