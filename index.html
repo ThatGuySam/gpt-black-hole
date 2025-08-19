@@ -328,33 +328,22 @@ fn fs_main(
             }]
           })
 
-        // Mouse orbit controls.
-        let dragging = false
-        let lastX = 0
-        let lastY = 0
-        canvas.addEventListener(
-          'pointerdown', (e) => {
-            dragging = true
-            lastX = e.clientX
-            lastY = e.clientY
-            canvas.setPointerCapture(e.pointerId)
-          }
-        )
-        canvas.addEventListener(
-          'pointermove', (e) => {
-            if (!dragging) return
-            const dx = e.clientX - lastX
-            const dy = e.clientY - lastY
-            yaw -= dx * 0.005
-            pitch -= dy * 0.005
-            pitch = clamp(pitch, -1.3, 1.3)
-            lastX = e.clientX
-            lastY = e.clientY
-          }
-        )
-        function endDrag(e){ dragging = false }
-        canvas.addEventListener('pointerup', endDrag)
-        canvas.addEventListener('pointercancel', endDrag)
+        // Mouse-position based rotation (no drag).
+        let hoverX = 0
+        let hoverY = 0
+        function updateHover(e){
+          const r = canvas.getBoundingClientRect()
+          const nx = (e.clientX - r.left) / r.width
+          const ny = (e.clientY - r.top) / r.height
+          hoverX = nx * 2 - 1
+          hoverY = ny * 2 - 1
+        }
+        canvas.addEventListener('pointermove', updateHover)
+        canvas.addEventListener('pointerenter', updateHover)
+        canvas.addEventListener('pointerleave', () => {
+          hoverX = 0
+          hoverY = 0
+        })
 
         canvas.addEventListener(
           'wheel', (e) => {
@@ -375,7 +364,23 @@ fn fs_main(
         window.addEventListener('resize', resizeCanvas)
 
         // Animation loop.
+        let lastTs = performance.now()
+        const ROT_SPEED_YAW = 1.8
+        const ROT_SPEED_PITCH = 1.2
         function frame() {
+          // Delta time in seconds (clamped)
+          const now = performance.now()
+          let dt = (now - lastTs) / 1000
+          lastTs = now
+          if (!isFinite(dt) || dt > 0.1) dt = 0.016
+
+          // Rotate based on cursor offset from center
+          // Positive hoverX moves right; invert for yaw
+          yaw -= hoverX * ROT_SPEED_YAW * dt
+          // Move up increases pitch
+          pitch += hoverY * ROT_SPEED_PITCH * dt
+          pitch = clamp(pitch, -1.3, 1.3)
+
           writeUniforms()
           const encoder = device
             .createCommandEncoder()
