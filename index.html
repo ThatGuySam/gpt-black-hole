@@ -233,6 +233,7 @@ fn fs_main(
         let yaw = Math.PI // look toward +Z from -Z
         let pitch = 0.27  // a little above plane
         let distance = 3.0
+        let roll = 0.0
         const target = [0, 0, 0]
         const worldUp = [0, 1, 0]
 
@@ -287,9 +288,25 @@ fn fs_main(
           )
           // Handle gimbal lock by nudging right.
           if (!isFinite(right[0])) right = [1,0,0]
-          const up = normalize3(
+          let up = normalize3(
             cross(right, forward)
           )
+
+          // Apply roll about forward axis.
+          const cr = Math.cos(roll)
+          const sr = Math.sin(roll)
+          const rRolled = [
+            right[0]*cr - up[0]*sr,
+            right[1]*cr - up[1]*sr,
+            right[2]*cr - up[2]*sr
+          ]
+          const uRolled = [
+            up[0]*cr + right[0]*sr,
+            up[1]*cr + right[1]*sr,
+            up[2]*cr + right[2]*sr
+          ]
+          right = rRolled
+          up = uRolled
 
           return { pos, right, up, forward }
         }
@@ -367,6 +384,8 @@ fn fs_main(
         let lastTs = performance.now()
         const ROT_SPEED_YAW = 1.8
         const ROT_SPEED_PITCH = 1.2
+        const MAX_ROLL = 0.65
+        const ROLL_RESP = 4.0
         function frame() {
           // Delta time in seconds (clamped)
           const now = performance.now()
@@ -380,6 +399,12 @@ fn fs_main(
           // Move up increases pitch
           pitch += hoverY * ROT_SPEED_PITCH * dt
           pitch = clamp(pitch, -1.3, 1.3)
+
+          // Bank (roll) toward horizontal offset so
+          // the camera tilts into the turn.
+          const rollTarget = -hoverX * MAX_ROLL
+          const lerp = Math.min(1, ROLL_RESP*dt)
+          roll = roll + (rollTarget - roll) * lerp
 
           writeUniforms()
           const encoder = device
